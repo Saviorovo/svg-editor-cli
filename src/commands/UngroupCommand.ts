@@ -20,9 +20,6 @@ export class UngroupCommand implements Command {
     if (!(shape instanceof GroupShape)) {
       return `error: cannot ungroup composite shape: ${this.gid}`;
     }
-    if (shape.parent === this.doc) {
-      return `error: cannot ungroup top-level container: ${this.gid}`;
-    }
 
     this.oldParent = shape.parent;
     if (this.oldParent) {

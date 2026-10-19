@@ -30,14 +30,34 @@ export class SVGParser {
 
   private parseChildren(xml: string): Shape[] {
     const children: Shape[] = [];
-    const regex = /<(rect|circle|ellipse|line|text|g)\b([^>]*)>(?:([^<]*)<\/\1>)?/g;
-    let match: RegExpExecArray | null;
+    let i = 0;
 
-    while ((match = regex.exec(xml)) !== null) {
-      const tag = match[1];
-      const attrStr = match[2];
-      const textContent = match[3];
+    while (i < xml.length) {
+      const tagStart = xml.indexOf('<', i);
+      if (tagStart < 0) break;
 
+      if (xml[tagStart + 1] === '/') {
+        i = tagStart + 1;
+        continue;
+      }
+
+      const tagEnd = xml.indexOf('>', tagStart);
+      if (tagEnd < 0) break;
+
+      const openTag = xml.slice(tagStart, tagEnd + 1);
+      const tagMatch = openTag.match(/^<(\w+)/);
+      if (!tagMatch) {
+        i = tagEnd + 1;
+        continue;
+      }
+
+      const tag = tagMatch[1];
+      if (!['rect', 'circle', 'ellipse', 'line', 'text', 'g'].includes(tag)) {
+        i = tagEnd + 1;
+        continue;
+      }
+
+      const attrStr = openTag.slice(tag.length + 1).replace(/>$/, '');
       let id = this.extractAttr(attrStr, 'id');
       if (!id) {
         const count = (this.autoIdCounter.get(tag) ?? 0) + 1;
@@ -47,20 +67,30 @@ export class SVGParser {
       }
 
       if (tag === 'g') {
+        const closeStart = this.findClosingTag(xml, tagStart, tag);
+        const inner = xml.slice(tagEnd + 1, closeStart);
         const group = new GroupShape(id);
-        const innerStart = match.index + match[0].length;
-        const innerEnd = this.findClosingTag(xml, match.index, tag);
-        const inner = xml.slice(innerStart, innerEnd);
         const nested = this.parseChildren(inner);
         for (const c of nested) {
           group.addChild(c);
         }
         children.push(group);
-      } else {
-        const shape = this.createShape(tag, id, attrStr, textContent);
-        if (shape) {
-          children.push(shape);
+        i = closeStart + `</${tag}>`.length;
+      } else if (tag === 'text') {
+        const closeStart = xml.indexOf(`</${tag}>`, tagEnd);
+        let textContent = '';
+        if (closeStart >= 0) {
+          textContent = xml.slice(tagEnd + 1, closeStart).trim();
+          i = closeStart + `</${tag}>`.length;
+        } else {
+          i = tagEnd + 1;
         }
+        const shape = this.createShape(tag, id, attrStr, textContent);
+        if (shape) children.push(shape);
+      } else {
+        const shape = this.createShape(tag, id, attrStr);
+        if (shape) children.push(shape);
+        i = tagEnd + 1;
       }
     }
 
@@ -86,7 +116,7 @@ export class SVGParser {
     }
 
     if (shape instanceof TextShape && textContent !== undefined) {
-      shape.text = this.unescapeXml(textContent.trim());
+      shape.text = this.unescapeXml(textContent);
     }
 
     return shape;
@@ -112,23 +142,20 @@ export class SVGParser {
     let depth = 1;
     let i = openIndex + 1;
     while (i < xml.length && depth > 0) {
-      const openMatch = xml.slice(i).match(new RegExp(`<${tag}\\b`));
-      const closeMatch = xml.slice(i).match(new RegExp(`</${tag}>`));
+      const nextOpen = xml.indexOf(`<${tag}`, i);
+      const nextClose = xml.indexOf(`</${tag}>`, i);
 
-      const openPos = openMatch ? i + openMatch.index! : Infinity;
-      const closePos = closeMatch ? i + closeMatch.index! : Infinity;
-
-      if (closePos < openPos) {
-        depth--;
-        i = closePos + `</${tag}>`.length;
-      } else if (openPos < closePos) {
+      if (nextClose < 0) break;
+      if (nextOpen >= 0 && nextOpen < nextClose) {
         depth++;
-        i = openPos + `<${tag}`.length;
+        i = nextOpen + `<${tag}`.length;
       } else {
-        break;
+        depth--;
+        if (depth === 0) return nextClose;
+        i = nextClose + `</${tag}>`.length;
       }
     }
-    return i;
+    return xml.length;
   }
 
   private unescapeXml(text: string): string {
