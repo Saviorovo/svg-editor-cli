@@ -1,0 +1,1 @@
+export { SVGParser } from './SVGParser';

@@ -1,0 +1,20 @@
+{
+  "name": "svg-editor-cli",
+  "version": "1.0.0",
+  "description": "SVG Editor CLI with Command Pattern",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "cli": "ts-node src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "test": "ts-node src/test/run-tests.ts"
+  },
+  "keywords": ["svg", "cli", "editor"],
+  "author": "Saviorovo",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.15.18",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
