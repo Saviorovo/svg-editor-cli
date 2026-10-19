@@ -196,3 +196,9 @@ npm run test     # 运行所有测试
 ```
 
 当前测试结果：37 个测试全部通过（18 单元 + 19 集成）。
+
+## 5. Github 仓库地址
+
+```bash
+https://github.com/Saviorovo/svg-editor-cli
+```
